@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Role pengguna sistem
+enum Role {
+  ADMIN
+  STAFF
+}
+
+// Jenis transaksi (Masuk / Keluar)
+enum TransactionType {
+  IN
+  OUT
+}
+
+// Tabel Pengguna
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(STAFF)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+}
+
+// Tabel Kategori Barang
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items Item[]
+}
+
+// Tabel Lokasi/Ruangan (Tempat barang disimpan)
+model Location {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items Item[]
+}
+
+// Tabel Pemasok (Supplier)
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  contact   String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+}
+
+// Tabel Barang
+model Item {
+  id          String   @id @default(cuid())
+  sku         String   @unique // Kode Barang unik
+  name        String
+  description String?
+  stock       Int      @default(0)
+  unit        String // Satuan barang, misal: Pcs, Box, Kg
+  categoryId  String
+  locationId  String? // Opsional jika belum ada lokasi spesifik
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category Category  @relation(fields: [categoryId], references: [id])
+  location Location? @relation(fields: [locationId], references: [id])
+
+  transactions Transaction[]
+
+  @@index([sku])
+  @@index([categoryId])
+  @@index([locationId])
+}
+
+// Tabel Transaksi (Mutasi Barang Masuk dan Keluar)
+model Transaction {
+  id         String          @id @default(cuid())
+  type       TransactionType
+  quantity   Int
+  note       String? // Keterangan / Alasan mutasi
+  date       DateTime        @default(now())
+  itemId     String
+  userId     String
+  supplierId String? // Diisi jika barang masuk dari supplier
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  item     Item      @relation(fields: [itemId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([itemId])
+  @@index([userId])
+}

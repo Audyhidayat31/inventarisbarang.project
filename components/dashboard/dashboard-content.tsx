@@ -143,7 +143,7 @@ export function DashboardContent({ user, stats }: DashboardContentProps) {
                         variant="outline"
                         className="border-destructive/50 text-destructive"
                       >
-                        {item.quantity} / {item.min_stock} {item.unit}
+                        {item.stock} {item.unit}
                       </Badge>
                     </div>
                   </div>
@@ -186,7 +186,7 @@ export function DashboardContent({ user, stats }: DashboardContentProps) {
                       Stok
                     </th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
-                      Harga Beli
+                      SKU
                     </th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">
                       Lokasi
@@ -201,13 +201,13 @@ export function DashboardContent({ user, stats }: DashboardContentProps) {
                         <Badge variant="secondary">{item.category_name}</Badge>
                       </td>
                       <td className="py-3 px-4 text-foreground">
-                        {item.quantity} {item.unit}
+                        {item.stock} {item.unit}
                       </td>
                       <td className="py-3 px-4 text-foreground">
-                        {formatCurrency(item.purchase_price)}
+                        {item.sku}
                       </td>
                       <td className="py-3 px-4 text-muted-foreground">
-                        {item.location || "-"}
+                        {item.location_name || "-"}
                       </td>
                     </tr>
                   ))}

@@ -1,54 +1,77 @@
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 import { DashboardContent } from "@/components/dashboard/dashboard-content"
 
 export default async function DashboardPage() {
   const user = await getSession()
 
-  // Get stats
-  const totalItemsResult = await sql`SELECT COUNT(*) as count FROM items`
-  const totalItems = parseInt(totalItemsResult[0].count)
+  // Get stats using Prisma
+  const totalItems = await prisma.item.count()
+  const totalCategories = await prisma.category.count()
 
-  const totalCategoriesResult = await sql`SELECT COUNT(*) as count FROM categories`
-  const totalCategories = parseInt(totalCategoriesResult[0].count)
+  // Get low stock items (stock <= 5 as threshold)
+  const lowStockItems = await prisma.item.count({
+    where: { stock: { lte: 5 } },
+  })
 
-  const lowStockResult = await sql`SELECT COUNT(*) as count FROM items WHERE quantity <= min_stock`
-  const lowStockItems = parseInt(lowStockResult[0].count)
+  // Total value is not tracked in schema, default to 0
+  const totalValue = 0
 
-  const totalValueResult = await sql`SELECT COALESCE(SUM(quantity * purchase_price), 0) as total FROM items`
-  const totalValue = parseFloat(totalValueResult[0].total)
+  // Items by category
+  const categories = await prisma.category.findMany({
+    include: { _count: { select: { items: true } } },
+    orderBy: { name: "asc" },
+  })
+  const itemsByCategory = categories.map((c) => ({
+    category: c.name,
+    count: c._count.items,
+  }))
 
-  const itemsByCategory = await sql`
-    SELECT c.name as category, COUNT(i.id) as count
-    FROM categories c
-    LEFT JOIN items i ON c.id = i.category_id
-    GROUP BY c.id, c.name
-    ORDER BY count DESC
-  `
+  // Recent items
+  const recentItemsRaw = await prisma.item.findMany({
+    include: { category: true, location: true },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  })
+  const recentItems = recentItemsRaw.map((item) => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    sku: item.sku,
+    stock: item.stock,
+    unit: item.unit,
+    category_name: item.category.name,
+    location_name: item.location?.name || null,
+    created_at: item.createdAt.toISOString(),
+    updated_at: item.updatedAt.toISOString(),
+  }))
 
-  const recentItems = await sql`
-    SELECT i.*, c.name as category_name
-    FROM items i
-    LEFT JOIN categories c ON i.category_id = c.id
-    ORDER BY i.created_at DESC
-    LIMIT 5
-  `
-
-  const lowStockList = await sql`
-    SELECT i.*, c.name as category_name
-    FROM items i
-    LEFT JOIN categories c ON i.category_id = c.id
-    WHERE i.quantity <= i.min_stock
-    ORDER BY i.quantity ASC
-    LIMIT 10
-  `
+  // Low stock list
+  const lowStockListRaw = await prisma.item.findMany({
+    where: { stock: { lte: 5 } },
+    include: { category: true, location: true },
+    orderBy: { stock: "asc" },
+    take: 10,
+  })
+  const lowStockList = lowStockListRaw.map((item) => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    sku: item.sku,
+    stock: item.stock,
+    unit: item.unit,
+    category_name: item.category.name,
+    location_name: item.location?.name || null,
+    created_at: item.createdAt.toISOString(),
+    updated_at: item.updatedAt.toISOString(),
+  }))
 
   const stats = {
     total_items: totalItems,
     total_categories: totalCategories,
     low_stock_items: lowStockItems,
     total_value: totalValue,
-    items_by_category: itemsByCategory as { category: string; count: number }[],
+    items_by_category: itemsByCategory,
     recent_items: recentItems as any[],
     low_stock_list: lowStockList as any[],
   }

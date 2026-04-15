@@ -1,22 +1,23 @@
 export interface Category {
-  id: number
+  id: string
   name: string
   description: string | null
+  item_count?: number
   created_at: string
+  updated_at: string
 }
 
 export interface Item {
-  id: number
+  id: string
   name: string
   description: string | null
-  category_id: number
-  category_name?: string
-  quantity: number
+  sku: string
+  stock: number
   unit: string
-  min_stock: number
-  location: string | null
-  purchase_price: number
-  sale_price: number
+  categoryId: string
+  category_name?: string
+  locationId: string | null
+  location_name?: string | null
   created_at: string
   updated_at: string
 }

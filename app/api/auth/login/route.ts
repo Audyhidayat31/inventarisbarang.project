@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { login } from "@/lib/auth"
+import { login, setSessionCookie } from "@/lib/auth"
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +18,15 @@ export async function POST(request: Request) {
       return NextResponse.json(result, { status: 401 })
     }
 
-    return NextResponse.json(result)
+    // Set session cookie
+    if (result.token) {
+      await setSessionCookie(result.token)
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: result.user,
+    })
   } catch (error) {
     console.error("Login error:", error)
     return NextResponse.json(

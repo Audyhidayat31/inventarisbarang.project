@@ -61,7 +61,7 @@ export default function ReportsPage() {
     value: parseInt(item.count as unknown as string),
   }))
 
-  const totalQuantity = stats.recent_items.reduce((sum, item) => sum + item.quantity, 0)
+  const totalStock = stats.recent_items.reduce((sum, item) => sum + (item.stock || 0), 0)
 
   return (
     <div className="space-y-6">
@@ -296,7 +296,7 @@ export default function ReportsPage() {
                       <p className="text-sm text-muted-foreground">{item.category_name}</p>
                     </div>
                     <Badge variant="outline" className="border-destructive/50 text-destructive">
-                      {item.quantity} / {item.min_stock} {item.unit}
+                      {item.stock} {item.unit}
                     </Badge>
                   </div>
                 ))}

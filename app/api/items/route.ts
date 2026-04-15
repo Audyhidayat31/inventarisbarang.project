@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request: Request) {
   try {
@@ -13,42 +13,42 @@ export async function GET(request: Request) {
     const search = searchParams.get("search") || ""
     const category = searchParams.get("category") || ""
 
-    let items
-    if (search && category) {
-      items = await sql`
-        SELECT i.*, c.name as category_name
-        FROM items i
-        LEFT JOIN categories c ON i.category_id = c.id
-        WHERE (i.name ILIKE ${"%" + search + "%"} OR i.description ILIKE ${"%" + search + "%"})
-        AND i.category_id = ${parseInt(category)}
-        ORDER BY i.created_at DESC
-      `
-    } else if (search) {
-      items = await sql`
-        SELECT i.*, c.name as category_name
-        FROM items i
-        LEFT JOIN categories c ON i.category_id = c.id
-        WHERE i.name ILIKE ${"%" + search + "%"} OR i.description ILIKE ${"%" + search + "%"}
-        ORDER BY i.created_at DESC
-      `
-    } else if (category) {
-      items = await sql`
-        SELECT i.*, c.name as category_name
-        FROM items i
-        LEFT JOIN categories c ON i.category_id = c.id
-        WHERE i.category_id = ${parseInt(category)}
-        ORDER BY i.created_at DESC
-      `
-    } else {
-      items = await sql`
-        SELECT i.*, c.name as category_name
-        FROM items i
-        LEFT JOIN categories c ON i.category_id = c.id
-        ORDER BY i.created_at DESC
-      `
+    const where: any = {}
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { sku: { contains: search, mode: "insensitive" } },
+      ]
     }
 
-    return NextResponse.json(items)
+    if (category) {
+      where.categoryId = category
+    }
+
+    const items = await prisma.item.findMany({
+      where,
+      include: { category: true, location: true },
+      orderBy: { createdAt: "desc" },
+    })
+
+    const result = items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      sku: item.sku,
+      stock: item.stock,
+      unit: item.unit,
+      categoryId: item.categoryId,
+      category_name: item.category.name,
+      locationId: item.locationId,
+      location_name: item.location?.name || null,
+      created_at: item.createdAt.toISOString(),
+      updated_at: item.updatedAt.toISOString(),
+    }))
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error("Get items error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -63,19 +63,45 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json()
-    const { name, description, category_id, quantity, unit, min_stock, location, purchase_price, sale_price } = data
+    const { name, description, sku, categoryId, stock, unit, locationId } = data
 
-    if (!name || !category_id || quantity === undefined || !unit) {
+    if (!name || !categoryId || stock === undefined || !unit || !sku) {
       return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 })
     }
 
-    const result = await sql`
-      INSERT INTO items (name, description, category_id, quantity, unit, min_stock, location, purchase_price, sale_price)
-      VALUES (${name}, ${description || null}, ${category_id}, ${quantity}, ${unit}, ${min_stock || 0}, ${location || null}, ${purchase_price || 0}, ${sale_price || 0})
-      RETURNING *
-    `
+    // Check if SKU already exists
+    const existingSku = await prisma.item.findUnique({ where: { sku } })
+    if (existingSku) {
+      return NextResponse.json({ error: "SKU sudah digunakan" }, { status: 400 })
+    }
 
-    return NextResponse.json(result[0])
+    const item = await prisma.item.create({
+      data: {
+        name,
+        description: description || null,
+        sku,
+        categoryId,
+        stock: parseInt(stock),
+        unit,
+        locationId: locationId || null,
+      },
+      include: { category: true, location: true },
+    })
+
+    return NextResponse.json({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      sku: item.sku,
+      stock: item.stock,
+      unit: item.unit,
+      categoryId: item.categoryId,
+      category_name: item.category.name,
+      locationId: item.locationId,
+      location_name: item.location?.name || null,
+      created_at: item.createdAt.toISOString(),
+      updated_at: item.updatedAt.toISOString(),
+    })
   } catch (error) {
     console.error("Create item error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

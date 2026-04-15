@@ -38,14 +38,6 @@ import type { Item, Category } from "@/lib/types"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(value)
-}
-
 export default function ItemsPage() {
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("")
@@ -69,26 +61,22 @@ export default function ItemsPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    category_id: "",
-    quantity: "",
+    sku: "",
+    categoryId: "",
+    stock: "",
     unit: "",
-    min_stock: "",
-    location: "",
-    purchase_price: "",
-    sale_price: "",
+    locationId: "",
   })
 
   const resetForm = () => {
     setFormData({
       name: "",
       description: "",
-      category_id: "",
-      quantity: "",
+      sku: "",
+      categoryId: "",
+      stock: "",
       unit: "",
-      min_stock: "",
-      location: "",
-      purchase_price: "",
-      sale_price: "",
+      locationId: "",
     })
     setError("")
   }
@@ -98,13 +86,11 @@ export default function ItemsPage() {
       setFormData({
         name: editingItem.name,
         description: editingItem.description || "",
-        category_id: editingItem.category_id.toString(),
-        quantity: editingItem.quantity.toString(),
+        sku: editingItem.sku,
+        categoryId: editingItem.categoryId,
+        stock: editingItem.stock.toString(),
         unit: editingItem.unit,
-        min_stock: editingItem.min_stock.toString(),
-        location: editingItem.location || "",
-        purchase_price: editingItem.purchase_price.toString(),
-        sale_price: editingItem.sale_price.toString(),
+        locationId: editingItem.locationId || "",
       })
     }
   }, [editingItem])
@@ -117,13 +103,11 @@ export default function ItemsPage() {
     const payload = {
       name: formData.name,
       description: formData.description || null,
-      category_id: parseInt(formData.category_id),
-      quantity: parseInt(formData.quantity),
+      sku: formData.sku,
+      categoryId: formData.categoryId,
+      stock: parseInt(formData.stock),
       unit: formData.unit,
-      min_stock: parseInt(formData.min_stock) || 0,
-      location: formData.location || null,
-      purchase_price: parseFloat(formData.purchase_price) || 0,
-      sale_price: parseFloat(formData.sale_price) || 0,
+      locationId: formData.locationId || null,
     }
 
     try {
@@ -168,6 +152,82 @@ export default function ItemsPage() {
     }
   }
 
+  const ItemForm = ({ idPrefix = "" }: { idPrefix?: string }) => (
+    <FieldGroup>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}name`}>Nama Barang *</FieldLabel>
+        <Input
+          id={`${idPrefix}name`}
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          required
+          className="bg-input border-border"
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}sku`}>Kode Barang (SKU) *</FieldLabel>
+        <Input
+          id={`${idPrefix}sku`}
+          placeholder="Contoh: BRG-001"
+          value={formData.sku}
+          onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+          required
+          className="bg-input border-border"
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}category`}>Kategori *</FieldLabel>
+        <Select value={formData.categoryId} onValueChange={(v) => setFormData({ ...formData, categoryId: v })}>
+          <SelectTrigger className="bg-input border-border">
+            <SelectValue placeholder="Pilih kategori" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories?.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}stock`}>Stok *</FieldLabel>
+          <Input
+            id={`${idPrefix}stock`}
+            type="number"
+            value={formData.stock}
+            onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+            required
+            min="0"
+            className="bg-input border-border"
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${idPrefix}unit`}>Satuan *</FieldLabel>
+          <Input
+            id={`${idPrefix}unit`}
+            placeholder="pcs, kg, dll"
+            value={formData.unit}
+            onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+            required
+            className="bg-input border-border"
+          />
+        </Field>
+      </div>
+      <Field>
+        <FieldLabel htmlFor={`${idPrefix}description`}>Deskripsi</FieldLabel>
+        <Textarea
+          id={`${idPrefix}description`}
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="bg-input border-border"
+          rows={3}
+        />
+      </Field>
+    </FieldGroup>
+  )
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -191,112 +251,7 @@ export default function ItemsPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit}>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="name">Nama Barang *</FieldLabel>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="bg-input border-border"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="category">Kategori *</FieldLabel>
-                  <Select value={formData.category_id} onValueChange={(v) => setFormData({ ...formData, category_id: v })}>
-                    <SelectTrigger className="bg-input border-border">
-                      <SelectValue placeholder="Pilih kategori" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories?.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id.toString()}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="quantity">Jumlah *</FieldLabel>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      value={formData.quantity}
-                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                      required
-                      min="0"
-                      className="bg-input border-border"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="unit">Satuan *</FieldLabel>
-                    <Input
-                      id="unit"
-                      placeholder="pcs, kg, dll"
-                      value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      required
-                      className="bg-input border-border"
-                    />
-                  </Field>
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="min_stock">Stok Minimum</FieldLabel>
-                  <Input
-                    id="min_stock"
-                    type="number"
-                    value={formData.min_stock}
-                    onChange={(e) => setFormData({ ...formData, min_stock: e.target.value })}
-                    min="0"
-                    className="bg-input border-border"
-                  />
-                </Field>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="purchase_price">Harga Beli</FieldLabel>
-                    <Input
-                      id="purchase_price"
-                      type="number"
-                      value={formData.purchase_price}
-                      onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })}
-                      min="0"
-                      className="bg-input border-border"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="sale_price">Harga Jual</FieldLabel>
-                    <Input
-                      id="sale_price"
-                      type="number"
-                      value={formData.sale_price}
-                      onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
-                      min="0"
-                      className="bg-input border-border"
-                    />
-                  </Field>
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="location">Lokasi Penyimpanan</FieldLabel>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="bg-input border-border"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="description">Deskripsi</FieldLabel>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="bg-input border-border"
-                    rows={3}
-                  />
-                </Field>
-              </FieldGroup>
+              <ItemForm />
               {error && <p className="text-destructive text-sm mt-4">{error}</p>}
               <div className="flex justify-end gap-3 mt-6">
                 <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
@@ -332,7 +287,7 @@ export default function ItemsPage() {
               <SelectContent>
                 <SelectItem value="">Semua Kategori</SelectItem>
                 {categories?.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                  <SelectItem key={cat.id} value={cat.id}>
                     {cat.name}
                   </SelectItem>
                 ))}
@@ -369,10 +324,9 @@ export default function ItemsPage() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Nama</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">SKU</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Kategori</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Stok</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Harga Beli</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Harga Jual</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Lokasi</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Aksi</th>
                   </tr>
@@ -388,6 +342,7 @@ export default function ItemsPage() {
                           )}
                         </div>
                       </td>
+                      <td className="py-3 px-4 text-muted-foreground font-mono text-sm">{item.sku}</td>
                       <td className="py-3 px-4">
                         <Badge variant="secondary">{item.category_name}</Badge>
                       </td>
@@ -395,17 +350,15 @@ export default function ItemsPage() {
                         <Badge
                           variant="outline"
                           className={
-                            item.quantity <= item.min_stock
+                            item.stock <= 5
                               ? "border-destructive/50 text-destructive"
                               : "border-success/50 text-success"
                           }
                         >
-                          {item.quantity} {item.unit}
+                          {item.stock} {item.unit}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-foreground">{formatCurrency(item.purchase_price)}</td>
-                      <td className="py-3 px-4 text-foreground">{formatCurrency(item.sale_price)}</td>
-                      <td className="py-3 px-4 text-muted-foreground">{item.location || "-"}</td>
+                      <td className="py-3 px-4 text-muted-foreground">{item.location_name || "-"}</td>
                       <td className="py-3 px-4">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -447,111 +400,7 @@ export default function ItemsPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="edit-name">Nama Barang *</FieldLabel>
-                <Input
-                  id="edit-name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  className="bg-input border-border"
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="edit-category">Kategori *</FieldLabel>
-                <Select value={formData.category_id} onValueChange={(v) => setFormData({ ...formData, category_id: v })}>
-                  <SelectTrigger className="bg-input border-border">
-                    <SelectValue placeholder="Pilih kategori" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories?.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id.toString()}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <div className="grid grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel htmlFor="edit-quantity">Jumlah *</FieldLabel>
-                  <Input
-                    id="edit-quantity"
-                    type="number"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    required
-                    min="0"
-                    className="bg-input border-border"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="edit-unit">Satuan *</FieldLabel>
-                  <Input
-                    id="edit-unit"
-                    value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    required
-                    className="bg-input border-border"
-                  />
-                </Field>
-              </div>
-              <Field>
-                <FieldLabel htmlFor="edit-min_stock">Stok Minimum</FieldLabel>
-                <Input
-                  id="edit-min_stock"
-                  type="number"
-                  value={formData.min_stock}
-                  onChange={(e) => setFormData({ ...formData, min_stock: e.target.value })}
-                  min="0"
-                  className="bg-input border-border"
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-4">
-                <Field>
-                  <FieldLabel htmlFor="edit-purchase_price">Harga Beli</FieldLabel>
-                  <Input
-                    id="edit-purchase_price"
-                    type="number"
-                    value={formData.purchase_price}
-                    onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })}
-                    min="0"
-                    className="bg-input border-border"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="edit-sale_price">Harga Jual</FieldLabel>
-                  <Input
-                    id="edit-sale_price"
-                    type="number"
-                    value={formData.sale_price}
-                    onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
-                    min="0"
-                    className="bg-input border-border"
-                  />
-                </Field>
-              </div>
-              <Field>
-                <FieldLabel htmlFor="edit-location">Lokasi Penyimpanan</FieldLabel>
-                <Input
-                  id="edit-location"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="bg-input border-border"
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="edit-description">Deskripsi</FieldLabel>
-                <Textarea
-                  id="edit-description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="bg-input border-border"
-                  rows={3}
-                />
-              </Field>
-            </FieldGroup>
+            <ItemForm idPrefix="edit-" />
             {error && <p className="text-destructive text-sm mt-4">{error}</p>}
             <div className="flex justify-end gap-3 mt-6">
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>

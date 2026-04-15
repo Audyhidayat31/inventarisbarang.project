@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   try {
@@ -9,15 +9,21 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const categories = await sql`
-      SELECT c.*, COUNT(i.id) as item_count
-      FROM categories c
-      LEFT JOIN items i ON c.id = i.category_id
-      GROUP BY c.id
-      ORDER BY c.name ASC
-    `
+    const categories = await prisma.category.findMany({
+      include: { _count: { select: { items: true } } },
+      orderBy: { name: "asc" },
+    })
 
-    return NextResponse.json(categories)
+    const result = categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      item_count: c._count.items,
+      created_at: c.createdAt.toISOString(),
+      updated_at: c.updatedAt.toISOString(),
+    }))
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error("Get categories error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -39,18 +45,26 @@ export async function POST(request: Request) {
     }
 
     // Check if category already exists
-    const existing = await sql`SELECT id FROM categories WHERE name = ${name}`
-    if (existing.length > 0) {
+    const existing = await prisma.category.findUnique({ where: { name } })
+    if (existing) {
       return NextResponse.json({ error: "Kategori sudah ada" }, { status: 400 })
     }
 
-    const result = await sql`
-      INSERT INTO categories (name, description)
-      VALUES (${name}, ${description || null})
-      RETURNING *
-    `
+    const category = await prisma.category.create({
+      data: {
+        name,
+        description: description || null,
+      },
+    })
 
-    return NextResponse.json(result[0])
+    return NextResponse.json({
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      item_count: 0,
+      created_at: category.createdAt.toISOString(),
+      updated_at: category.updatedAt.toISOString(),
+    })
   } catch (error) {
     console.error("Create category error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

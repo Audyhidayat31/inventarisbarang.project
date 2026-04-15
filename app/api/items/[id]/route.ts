@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSession } from "@/lib/auth"
-import { sql } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(
   request: Request,
@@ -14,18 +14,29 @@ export async function GET(
 
     const { id } = await params
 
-    const items = await sql`
-      SELECT i.*, c.name as category_name
-      FROM items i
-      LEFT JOIN categories c ON i.category_id = c.id
-      WHERE i.id = ${parseInt(id)}
-    `
+    const item = await prisma.item.findUnique({
+      where: { id },
+      include: { category: true, location: true },
+    })
 
-    if (items.length === 0) {
+    if (!item) {
       return NextResponse.json({ error: "Item tidak ditemukan" }, { status: 404 })
     }
 
-    return NextResponse.json(items[0])
+    return NextResponse.json({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      sku: item.sku,
+      stock: item.stock,
+      unit: item.unit,
+      categoryId: item.categoryId,
+      category_name: item.category.name,
+      locationId: item.locationId,
+      location_name: item.location?.name || null,
+      created_at: item.createdAt.toISOString(),
+      updated_at: item.updatedAt.toISOString(),
+    })
   } catch (error) {
     console.error("Get item error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -44,33 +55,54 @@ export async function PUT(
 
     const { id } = await params
     const data = await request.json()
-    const { name, description, category_id, quantity, unit, min_stock, location, purchase_price, sale_price } = data
+    const { name, description, sku, categoryId, stock, unit, locationId } = data
 
-    if (!name || !category_id || quantity === undefined || !unit) {
+    if (!name || !categoryId || stock === undefined || !unit) {
       return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 })
     }
 
-    const result = await sql`
-      UPDATE items
-      SET name = ${name},
-          description = ${description || null},
-          category_id = ${category_id},
-          quantity = ${quantity},
-          unit = ${unit},
-          min_stock = ${min_stock || 0},
-          location = ${location || null},
-          purchase_price = ${purchase_price || 0},
-          sale_price = ${sale_price || 0},
-          updated_at = NOW()
-      WHERE id = ${parseInt(id)}
-      RETURNING *
-    `
-
-    if (result.length === 0) {
+    // Check if item exists
+    const existing = await prisma.item.findUnique({ where: { id } })
+    if (!existing) {
       return NextResponse.json({ error: "Item tidak ditemukan" }, { status: 404 })
     }
 
-    return NextResponse.json(result[0])
+    // Check if SKU is used by another item
+    if (sku && sku !== existing.sku) {
+      const skuExists = await prisma.item.findUnique({ where: { sku } })
+      if (skuExists) {
+        return NextResponse.json({ error: "SKU sudah digunakan" }, { status: 400 })
+      }
+    }
+
+    const item = await prisma.item.update({
+      where: { id },
+      data: {
+        name,
+        description: description || null,
+        sku: sku || existing.sku,
+        categoryId,
+        stock: parseInt(stock),
+        unit,
+        locationId: locationId || null,
+      },
+      include: { category: true, location: true },
+    })
+
+    return NextResponse.json({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      sku: item.sku,
+      stock: item.stock,
+      unit: item.unit,
+      categoryId: item.categoryId,
+      category_name: item.category.name,
+      locationId: item.locationId,
+      location_name: item.location?.name || null,
+      created_at: item.createdAt.toISOString(),
+      updated_at: item.updatedAt.toISOString(),
+    })
   } catch (error) {
     console.error("Update item error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -89,14 +121,12 @@ export async function DELETE(
 
     const { id } = await params
 
-    const result = await sql`
-      DELETE FROM items WHERE id = ${parseInt(id)}
-      RETURNING id
-    `
-
-    if (result.length === 0) {
+    const existing = await prisma.item.findUnique({ where: { id } })
+    if (!existing) {
       return NextResponse.json({ error: "Item tidak ditemukan" }, { status: 404 })
     }
+
+    await prisma.item.delete({ where: { id } })
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -1,9 +1,11 @@
+import { prisma } from "@/lib/prisma"
 import { cookies } from "next/headers"
-import { sql } from "./db"
 import bcrypt from "bcryptjs"
 
+const SESSION_COOKIE_NAME = "session_token"
+
 export interface User {
-  id: number
+  id: string
   username: string
   email: string
   full_name: string
@@ -18,112 +20,216 @@ export async function verifyPassword(password: string, hashedPassword: string): 
   return bcrypt.compare(password, hashedPassword)
 }
 
-export async function createSession(userId: number): Promise<string> {
+/**
+ * Membuat session di database dan mengembalikan token.
+ */
+export async function createSession(userId: string): Promise<string> {
   const token = crypto.randomUUID()
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 hari
 
-  await sql`
-    INSERT INTO sessions (user_id, token, expires_at)
-    VALUES (${userId}, ${token}, ${expiresAt.toISOString()})
-  `
-
-  const cookieStore = await cookies()
-  cookieStore.set("session_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    expires: expiresAt,
-    path: "/",
+  await prisma.session.create({
+    data: {
+      userId,
+      token,
+      expiresAt,
+    },
   })
 
   return token
 }
 
+/**
+ * Set session cookie setelah login/register berhasil.
+ */
+export async function setSessionCookie(token: string): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60, // 7 hari dalam detik
+  })
+}
+
+/**
+ * Memvalidasi token session dan mengembalikan data user.
+ */
+export async function validateSession(token: string): Promise<User | null> {
+  try {
+    const session = await prisma.session.findUnique({
+      where: { token },
+      include: { user: true },
+    })
+
+    if (!session || session.expiresAt < new Date()) {
+      // Hapus session yang expired
+      if (session) {
+        await prisma.session.delete({ where: { id: session.id } }).catch(() => {})
+      }
+      return null
+    }
+
+    return {
+      id: session.user.id,
+      username: session.user.username,
+      email: session.user.email,
+      full_name: session.user.name,
+      role: session.user.role === "ADMIN" ? "admin" : "user",
+    }
+  } catch (error) {
+    console.error("Validate session error:", error)
+    return null
+  }
+}
+
+/**
+ * Mendapatkan user dari session cookie saat ini.
+ * Digunakan oleh server components dan API routes.
+ */
 export async function getSession(): Promise<User | null> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get("session_token")?.value
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
 
-  if (!token) return null
+    if (!token) {
+      return null
+    }
 
-  const sessions = await sql`
-    SELECT u.id, u.username, u.email, u.full_name, u.role
-    FROM sessions s
-    JOIN users u ON s.user_id = u.id
-    WHERE s.token = ${token} AND s.expires_at > NOW()
-  `
-
-  if (sessions.length === 0) return null
-
-  return sessions[0] as User
+    return validateSession(token)
+  } catch (error) {
+    console.error("Get session error:", error)
+    return null
+  }
 }
 
+/**
+ * Menghapus session dari database dan menghapus cookie.
+ */
 export async function destroySession(): Promise<void> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get("session_token")?.value
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
 
-  if (token) {
-    await sql`DELETE FROM sessions WHERE token = ${token}`
-    cookieStore.delete("session_token")
+    if (token) {
+      await prisma.session.deleteMany({
+        where: { token },
+      })
+    }
+
+    cookieStore.set(SESSION_COOKIE_NAME, "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0, // Expire immediately
+    })
+  } catch (error) {
+    console.error("Destroy session error:", error)
   }
 }
 
-export async function login(username: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> {
-  const users = await sql`
-    SELECT id, username, email, full_name, role, password_hash
-    FROM users
-    WHERE username = ${username} OR email = ${username}
-  `
+/**
+ * Menghapus session dari database berdasarkan token.
+ */
+export async function deleteSession(token: string): Promise<void> {
+  await prisma.session.deleteMany({
+    where: { token },
+  })
+}
 
-  if (users.length === 0) {
-    return { success: false, error: "Username atau password salah" }
-  }
+/**
+ * Login: validasi kredensial dan buat session.
+ * Mengembalikan token dan data user jika sukses.
+ */
+export async function login(
+  username: string,
+  password: string
+): Promise<{ success: boolean; error?: string; user?: User; token?: string }> {
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ username }, { email: username }],
+      },
+    })
 
-  const user = users[0]
-  const isValid = await verifyPassword(password, user.password_hash)
+    if (!user) {
+      return { success: false, error: "Username atau password salah" }
+    }
 
-  if (!isValid) {
-    return { success: false, error: "Username atau password salah" }
-  }
+    const isValid = await verifyPassword(password, user.password)
 
-  await createSession(user.id)
+    if (!isValid) {
+      return { success: false, error: "Username atau password salah" }
+    }
 
-  return {
-    success: true,
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      full_name: user.full_name,
-      role: user.role,
-    },
+    const token = await createSession(user.id)
+
+    return {
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        full_name: user.name,
+        role: user.role === "ADMIN" ? "admin" : "user",
+      },
+    }
+  } catch (error) {
+    console.error("Login error:", error)
+    return { success: false, error: "Terjadi kesalahan server" }
   }
 }
 
+/**
+ * Register: buat user baru dan session.
+ * Mengembalikan token dan data user jika sukses.
+ */
 export async function register(data: {
   username: string
   email: string
   password: string
   full_name: string
-}): Promise<{ success: boolean; error?: string; user?: User }> {
-  // Check if username or email already exists
-  const existing = await sql`
-    SELECT id FROM users WHERE username = ${data.username} OR email = ${data.email}
-  `
+}): Promise<{ success: boolean; error?: string; user?: User; token?: string }> {
+  try {
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [{ username: data.username }, { email: data.email }],
+      },
+    })
 
-  if (existing.length > 0) {
-    return { success: false, error: "Username atau email sudah terdaftar" }
+    if (existing) {
+      return { success: false, error: "Username atau email sudah terdaftar" }
+    }
+
+    const passwordHash = await hashPassword(data.password)
+
+    const user = await prisma.user.create({
+      data: {
+        username: data.username,
+        email: data.email,
+        password: passwordHash,
+        name: data.full_name,
+        role: "STAFF",
+      },
+    })
+
+    const token = await createSession(user.id)
+
+    return {
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        full_name: user.name,
+        role: user.role === "ADMIN" ? "admin" : "user",
+      },
+    }
+  } catch (error) {
+    console.error("Register error:", error)
+    return { success: false, error: "Terjadi kesalahan server" }
   }
-
-  const passwordHash = await hashPassword(data.password)
-
-  const result = await sql`
-    INSERT INTO users (username, email, password_hash, full_name, role)
-    VALUES (${data.username}, ${data.email}, ${passwordHash}, ${data.full_name}, 'user')
-    RETURNING id, username, email, full_name, role
-  `
-
-  const user = result[0] as User
-  await createSession(user.id)
-
-  return { success: true, user }
 }

@@ -1,9 +1,13 @@
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { DashboardContent } from "@/components/dashboard/dashboard-content"
+import { redirect } from "next/navigation"
 
 export default async function DashboardPage() {
   const user = await getSession()
+  if (!user) {
+    redirect("/login")
+  }
 
   // Get stats using Prisma
   const totalItems = await prisma.item.count()

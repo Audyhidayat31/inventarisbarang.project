@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { FolderOpen, Plus, Pencil, Trash2, Loader2 } from "lucide-react"
 
 interface Category {
-  id: number
+  id: string
   name: string
   description: string | null
   item_count: number
@@ -233,7 +233,7 @@ export default function CategoriesPage() {
                     size="sm"
                     className="text-destructive hover:text-destructive"
                     onClick={() => setDeleteCategory(category)}
-                    disabled={parseInt(category.item_count as unknown as string) > 0}
+                    disabled={category.item_count > 0}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
                     Hapus

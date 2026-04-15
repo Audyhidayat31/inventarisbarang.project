@@ -280,12 +280,15 @@ export default function ItemsPage() {
                 className="pl-10 bg-input border-border"
               />
             </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <Select 
+              value={categoryFilter || "all"} 
+              onValueChange={(v) => setCategoryFilter(v === "all" ? "" : v)}
+            >
               <SelectTrigger className="w-full sm:w-48 bg-input border-border">
                 <SelectValue placeholder="Semua Kategori" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Semua Kategori</SelectItem>
+                <SelectItem value="all">Semua Kategori</SelectItem>
                 {categories?.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
                     {cat.name}

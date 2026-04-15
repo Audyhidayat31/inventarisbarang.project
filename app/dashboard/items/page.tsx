@@ -161,6 +161,7 @@ export default function ItemsPage() {
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           required
+          suppressHydrationWarning
           className="bg-input border-border"
         />
       </Field>
@@ -172,6 +173,7 @@ export default function ItemsPage() {
           value={formData.sku}
           onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
           required
+          suppressHydrationWarning
           className="bg-input border-border"
         />
       </Field>
@@ -277,6 +279,7 @@ export default function ItemsPage() {
                 placeholder="Cari barang..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                suppressHydrationWarning
                 className="pl-10 bg-input border-border"
               />
             </div>

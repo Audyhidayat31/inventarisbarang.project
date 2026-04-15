@@ -6,21 +6,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-// Role pengguna sistem
-enum Role {
-  ADMIN
-  STAFF
-}
-
-// Jenis transaksi (Masuk / Keluar)
-enum TransactionType {
-  IN
-  OUT
-}
+// Role pengguna sistem: ADMIN | STAFF
+// Jenis transaksi: IN | OUT
 
 // Tabel Pengguna
 model User {
@@ -29,7 +20,7 @@ model User {
   name      String
   email     String   @unique
   password  String
-  role      Role     @default(STAFF)
+  role      String   @default("STAFF")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   X,
+  Users,
 } from "lucide-react"
 import { useState } from "react"
 import type { User } from "@/lib/auth"
@@ -76,6 +77,21 @@ export function Sidebar({ user }: SidebarProps) {
               </Link>
             )
           })}
+          {user.role === "admin" && (
+            <Link
+              href="/dashboard/users"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                pathname.startsWith("/dashboard/users")
+                  ? "bg-sidebar-accent text-sidebar-primary"
+                  : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+              )}
+            >
+              <Users className="h-5 w-5" />
+              Kelola Pengguna
+            </Link>
+          )}
         </div>
       </nav>
 

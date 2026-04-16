@@ -15,6 +15,7 @@ import {
   PieChart,
   Pie,
   Legend,
+  CartesianGrid,
 } from "recharts"
 import type { DashboardStats } from "@/lib/types"
 
@@ -149,10 +150,18 @@ export default function ReportsPage() {
                 <p>Belum ada data</p>
               </div>
             ) : (
-              <div className="h-[300px]">
+              <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categoryData} layout="vertical" margin={{ left: 0, right: 20 }}>
-                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <BarChart data={categoryData} layout="vertical" margin={{ top: 10, left: 0, right: 20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                    <XAxis 
+                      type="number" 
+                      stroke="hsl(var(--muted-foreground))" 
+                      fontSize={12} 
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
                     <YAxis
                       type="category"
                       dataKey="name"
@@ -160,17 +169,21 @@ export default function ReportsPage() {
                       fontSize={12}
                       width={100}
                       tickLine={false}
+                      axisLine={false}
+                      tickMargin={10}
                     />
                     <Tooltip
+                      cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
                         borderRadius: "8px",
                         color: "hsl(var(--foreground))",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)"
                       }}
                       formatter={(value: number) => [`${value} item`, "Jumlah"]}
                     />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={40} animationDuration={1000}>
                       {categoryData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
@@ -199,21 +212,23 @@ export default function ReportsPage() {
                 <p>Belum ada data</p>
               </div>
             ) : (
-              <div className="h-[300px]">
+              <div className="h-[300px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart margin={{ top: 0, right: 0, bottom: 20, left: 0 }}>
                     <Pie
                       data={categoryData}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                      labelLine={false}
+                      cy="45%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={5}
+                      label={false}
+                      animationDuration={1000}
                     >
                       {categoryData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="hsl(var(--card))" strokeWidth={2} />
                       ))}
                     </Pie>
                     <Tooltip
@@ -222,11 +237,14 @@ export default function ReportsPage() {
                         border: "1px solid hsl(var(--border))",
                         borderRadius: "8px",
                         color: "hsl(var(--foreground))",
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)"
                       }}
                       formatter={(value: number) => [`${value} item`, "Jumlah"]}
                     />
                     <Legend
-                      formatter={(value) => <span style={{ color: "hsl(var(--foreground))" }}>{value}</span>}
+                      verticalAlign="bottom"
+                      height={36}
+                      formatter={(value) => <span style={{ color: "hsl(var(--foreground))", fontWeight: 500, marginLeft: '4px' }}>{value}</span>}
                     />
                   </PieChart>
                 </ResponsiveContainer>

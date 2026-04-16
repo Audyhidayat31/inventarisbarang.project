@@ -1,6 +1,6 @@
 "use client"
 
-import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
+import { Bar, BarChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts"
 
 interface CategoryChartProps {
   data: { category: string; count: number }[]
@@ -29,10 +29,18 @@ export function CategoryChart({ data }: CategoryChartProps) {
   }))
 
   return (
-    <div className="h-[300px]">
+    <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 20 }}>
-          <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+        <BarChart data={chartData} layout="vertical" margin={{ top: 10, left: 0, right: 20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+          <XAxis 
+            type="number" 
+            stroke="hsl(var(--muted-foreground))" 
+            fontSize={12} 
+            tickLine={false}
+            axisLine={false}
+            allowDecimals={false}
+          />
           <YAxis
             type="category"
             dataKey="name"
@@ -40,17 +48,21 @@ export function CategoryChart({ data }: CategoryChartProps) {
             fontSize={12}
             width={100}
             tickLine={false}
+            axisLine={false}
+            tickMargin={10}
           />
           <Tooltip
+            cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
             contentStyle={{
               backgroundColor: "hsl(var(--card))",
               border: "1px solid hsl(var(--border))",
               borderRadius: "8px",
               color: "hsl(var(--foreground))",
+              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)"
             }}
             formatter={(value: number) => [`${value} item`, "Jumlah"]}
           />
-          <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={40} animationDuration={1000}>
             {chartData.map((_, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}

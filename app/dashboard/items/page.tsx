@@ -152,7 +152,7 @@ export default function ItemsPage() {
     }
   }
 
-  const ItemForm = ({ idPrefix = "" }: { idPrefix?: string }) => (
+  const renderItemForm = (idPrefix = "") => (
     <FieldGroup>
       <Field>
         <FieldLabel htmlFor={`${idPrefix}name`}>Nama Barang *</FieldLabel>
@@ -253,7 +253,7 @@ export default function ItemsPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit}>
-              <ItemForm />
+              {renderItemForm()}
               {error && <p className="text-destructive text-sm mt-4">{error}</p>}
               <div className="flex justify-end gap-3 mt-6">
                 <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
@@ -406,7 +406,7 @@ export default function ItemsPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
-            <ItemForm idPrefix="edit-" />
+            {renderItemForm("edit-")}
             {error && <p className="text-destructive text-sm mt-4">{error}</p>}
             <div className="flex justify-end gap-3 mt-6">
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
